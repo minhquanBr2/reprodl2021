@@ -1,0 +1,18 @@
+seed: 0
+
+data:
+    train_data_folds: [1, 2, 3]
+    val_data_folds: [4]
+    test_data_folds: [5]
+    batch_size: 8
+    path: ESC-50-master
+
+model:
+  base_filters: 32
+  n_classes: 50
+  optimizer:
+    lr: 3e-4
+
+trainer:
+    max_epochs: 25
+    

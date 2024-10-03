@@ -1,72 +1,125 @@
 # Reproducible Deep Learning
-## Exercise 1: Git & Scripting
-[[Official website](https://www.sscardapane.it/teaching/reproducibledl/)] [[Slides](https://docs.google.com/presentation/d/1_AYIcCyVI59QiiXqU4Sn7VzwtVyfqv-lG36EPFzeSdY/edit?usp=sharing)]
+## Exercise 2: Configuration with Hydra
+[[Official website](https://www.sscardapane.it/teaching/reproducibledl/)]
 
 ## Objectives for the exercise
 
-- [ ] Experimenting with Git branches.
-- [ ] Turning a notebook into a runnable script.
+- [ ] Adding Hydra support for configuration.
+- [ ] Experimenting with (colored) logging inside the script.
 
 See the completed exercise:
 
 ```bash
-git checkout exercise1_git_completed
+git checkout exercise2_hydra_completed
 ```
 
 ## Prerequisites
 
 1. Uncompress the [ESC-50 dataset](https://github.com/karolpiczak/ESC-50) inside the *data* folder.
-2. Run *Initial Notebook.ipynb* to see an example of training.
+2. If this is your first exercise, run *train.py* to check that everything is working correctly.
+3. Install [Hydra](https://github.com/facebookresearch/hydra):
+
+```bash
+pip install hydra-core
+```
 
 ## Instructions
 
-The aim of this exercise is to get some familarity with Git branches and Python scripts. You are tasked with turning the [training notebook](Initial%20Notebook.ipynb) into a runnable Python script, working on a separate Git branch, and merging the result at the end.
+The aim of this exercise is to move all configuration for the training script inside an external configuration file. This simple step dramatically simplifies development and reproducibility, by providing a single entry point for most hyper-parameters of the model.
 
-1. Start by initializing and moving to an experimental branch:
+1. Go through the training script, and make a list of all values that can be considered hyper-parameters (e.g., the **learning rate** of the optimizer, the **sampling rate** of the dataset, the **batch size**, ...).
 
-```bash
-git branch experimental_branch
-git checkout experimental_branch
+2. Prepare a `configs/default.yaml` file collecting all hyper-parameters. We suggest the following (macro) organization, but you are free to experiment:
+
+```yaml
+data:
+    # All parameters related to the dataset
+model:
+    # All parameters related to the model
+    optimizer:
+        # Subset of parameters related to the optimizer
+trainer:
+    # All parameters to be passed at the Trainer object
 ```
 
-2. Convert the notebook into a Python script by running `nbconvert`:
+> :speech_balloon: Check the [basic example](https://hydra.cc/docs/intro/#basic-example) in the Hydra website for help in creating the configuration file.
 
-```bash
-jupyter nbconvert --to script --output "train" "Initial Notebook.ipynb"
-```
-
-> :speech_balloon: The command has [several useful flags](https://nbconvert.readthedocs.io/en/latest/config_options.html) to simplify the conversion (e.g., check `TemplateExporter.exclude_markdown`).
-
-3. Reorganize the script so that it is runnable from terminal:
-   * Remove all instructions that are not required for training;
-   * Put all training instructions inside a new `train()` function.
-
-4. Add a [top-level instruction](https://docs.python.org/3/library/__main__.html) to run the module as a script:
+3. Decorate the `train()` function to accept the configuration file:
 
 ```python
-if __name__ == "__main__":
-    train()
+@hydra.main(config_path='configs', config_name='default')
+def train(cfg: DictConfig):
+    # ...
 ```
 
-5. Create a [.gitignore file](https://git-scm.com/docs/gitignore) to ignore the *data* and *lightning_logs* folders.
-6. Remove the notebook, and check that the training script is working correctly:
+4. Use the `cfg` object to set all hyper-parameters in the script.
+   * Read the [OmegaConf](https://omegaconf.readthedocs.io/en/2.0_branch/usage.html#access-and-manipulation) documentation to learn more about accessing the values of the `DictConfig` object.
+   * `LightningModule` [accepts dictionaries to set hyper-parameters](https://pytorch-lightning.readthedocs.io/en/latest/common/hyperparameters.html).
+   * The `Trainer` object requires key-value parameters, but you can easily solve this with:
+        ```python
+        trainer.fit(**cfg.trainer)
+        ```
+    * Hydra will run your script inside a folder which is dynamically created at runtime. To load the dataset, you can use `hydra.utils.get_original_cwd()` to [recover the original folder](https://hydra.cc/docs/tutorials/basic/running_your_app/working_directory#original-working-directory).
+
+If everything went well, you should be able to experiment a little bit with Hydra configuration management:
+
+- Run a standard training loop: 
+  
+  ``` python train.py ```
+- Dynamically change the batch size (modify according to your YAML file): 
+  
+  ``` python train.py data.batch_size=4 ```
+
+- Add new flags for the trainer on-the-fly:
+  
+  ``` python train.py +trainer.fast_dev_run=True ```
+
+- Remove a flag from the configuration:
+   
+  ``` python train.py ~trainer.gpus ```
+  
+- Change the output directory:
+   
+  ``` python train.py hydra.run.dir="custom_dir" ```
+
+Congratulations! You have concluded another move to a reproducible deep learning world. :nerd_face:
+
+Move to the next exercise, or check some additional optional activities below:
 
 ```bash
-python train.py
+git checkout exercise3_dvc
 ```
 
-7. Merge the experimental branch into the main one, and delete the experimental branch:
+### Optional: add some logging
+
+Using Hydra, we can easily add any amount of logging into the application, that is automatically saved inside the dynamically generated folders.
+
+Start by importing the logging function:
+  
+```python 
+import logging
+logger = logging.getLogger(__name__)
+```
+
+You can use the logger to save some important information, debug messages, errors, etc. You will find the log inside the `train.log` file in each generated folder. For example, you can log the initial configuration of the training script:
+
+```python 
+from omegaconf import OmegaConf
+logger.info(OmegaConf.to_yaml(cfg))
+```
+
+Finally, you can color the logging information to make it more readable on terminal. Hydra has a number of interesting plugins, including a [colorlog](https://hydra.cc/docs/plugins/colorlog) plugin. First, install the plugin:
 
 ```bash
-git checkout main
-git merge experimental_branch
-git branch -d experimental_branch
+pip install hydra_colorlog
 ```
 
-Congratulations! You have concluded the first move to a reproducible deep learning world. :nerd_face:
+Then, add these instructions inside your configuration file:
 
-Move to the next exercise:
-
-```bash
-git checkout exercise2_hydra
+```yaml
+defaults:
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
 ```
+
+Run again the scripts above to see the colored output.
