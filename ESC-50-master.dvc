@@ -1,0 +1,6 @@
+outs:
+- md5: 58f5f86caf19fe90fab4d1a7fcd430bc.dir
+  size: 884047129
+  nfiles: 2011
+  hash: md5
+  path: ESC-50-master

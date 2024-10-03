@@ -11,17 +11,6 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 logger = logging.getLogger(__name__)
 
-import hydra
-from omegaconf import DictConfig, OmegaConf
-
-import logging
-logger = logging.getLogger(__name__)
-
-import hydra
-from omegaconf import DictConfig, OmegaConf
-
-import logging
-logger = logging.getLogger(__name__)
 
 class ESC50Dataset(torch.utils.data.Dataset):
     # Simple class to load the desired folders inside ESC-50
