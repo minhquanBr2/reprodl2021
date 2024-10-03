@@ -5,3 +5,4 @@ ESC-50-master
 outputs
 wandb/*
 __pycache__
+.dvc/config
