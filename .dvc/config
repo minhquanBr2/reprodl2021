@@ -2,5 +2,5 @@
     remote = origin
 ['remote "origin"']
     url = gdrive://10KS2GNo_TnpWVQUten4L2bmiSblPZwuq
-    gdrive_client_id = 
-    gdrive_client_secret = 
+    gdrive_client_id = 427059848826-ql96g83on5786q63c1h965581sltjv09.apps.googleusercontent.com
+    gdrive_client_secret = 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
