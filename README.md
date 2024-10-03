@@ -1,137 +1,125 @@
 # Reproducible Deep Learning
-## Exercise 4: Dockerization
-[[Official website](https://www.sscardapane.it/teaching/reproducibledl/)] [[Slides](https://docs.google.com/presentation/d/1r7SbbajL-UnYHOeY9fQ9YtoJdu9Q70U5M_11E68K1Rg/edit?usp=sharing)] [[Docker Website](http://dvc.org/)]
+## Exercise 6: Continuous Integration
+[[Official website](https://www.sscardapane.it/teaching/reproducibledl/)]
 
-This is the completed version of **exercise 4** (adding a Docker setup). 
+## Objectives for the exercise
 
-See the initial instructions:
+- [ ] Unit testing the code.
+- [ ] Automatic formatting with [Black](https://github.com/psf/black).
+- [ ] Integrating checks in pre-commit hooks.
+- [ ] Adding a GitHub Action to automate the process.
 
-```bash
-git checkout exercise4_docker
-```
-
-You can inspect the commits to look at specific changes in the code:
-
-```bash
-docker run hello-world
-```
-
-## Preliminaries
-
-[Requirement specifiers](https://pip.pypa.io/en/stable/cli/pip_install/#requirement-specifiers) are very useful text files detailing all the Python libraries needed for a project. Let us create one!
-
-1. Install `pipreqs`:
+See the completed exercise:
 
 ```bash
-pip install pipreqs
+git checkout exercise6_hooks_completed
 ```
 
-2. Generate a requirements.txt file from the current directory:
+## Prerequisites
+
+1. Complete (at least) [exercise 2](https://github.com/sscardapane/reprodl2021/tree/exercise2_hydra).
+   
+2. Install `black` and `nose`:
 
 ```bash
-pipreqs .
+pip install black nose
 ```
-3. While powerful, `pipreqs` is not perfect, which is why you should look carefully at the generated file. In particular, at the moment [it sets the wrong dependencies for Hydra](https://github.com/bndr/pipreqs/issues/244). __Remove `hydra` from requirements.txt__ (the correct package is `hydra-core`).
 
-### Optional: install a Docker dashboard
+## Preliminary: testing and formatting
 
-It is a good idea to have a decent dashboard to more easily manipulate images and containers. On some systems, you can use the [Docker Dashboard](https://docs.docker.com/desktop/dashboard/). Alternatively, you can use the VS Code plugin.
+The purpose of this exercise is to integrate two ways of checking the code correctness: **formatting** and **testing**. 
 
-For a more powerful alternative, you can start a [Portainer CE](https://documentation.portainer.io/quickstart/) container, which is a good exercise in understanding Docker:
+### Step 1: Add a unit test
+
+To start, create a `test_audionet.py` file with at least one test function:
+
+```python
+def testAudioNet():
+  ...
+  assert # Test something about the model
+```
+
+You can read the [Hydra documentation](https://hydra.cc/docs/next/advanced/unit_testing/) for information on how to load the configuration inside the unit test. If you need an idea for the unit test, PyTorch Lightning has a useful [overfit on batch](https://pytorch-lightning.readthedocs.io/en/latest/common/debugging.html#make-model-overfit-on-subset-of-data) function that provides a quick test for the correctness of the model. 
+
+Launch the unit test:
 
 ```bash
-docker volume create portainer_data
-docker run -d -p 9001:9000 --name=portainer -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce
+nosetests
 ```
 
-> :speech_balloon: We are using port 9001 to avoid conflicts with MinIO on port 9000.
+### Step 2 - Add formatting
 
-From [localhost:9001](http://localhost:9001) you can now monitor your Docker installation (see the [initial setup](https://documentation.portainer.io/v2.0/deploy/initial/)).
+[Black](https://github.com/psf/black) provides a powerful way to automatically format any code according to well-defined style guides.
 
-## Dockerfile \#1: developing in a container
-
-Our first Dockerfile will be a working environment inside which to develop (and launch) the application. See the [slides](https://docs.google.com/presentation/d/1r7SbbajL-UnYHOeY9fQ9YtoJdu9Q70U5M_11E68K1Rg/edit?usp=sharing) for a tutorial on building Dockerfiles.
-
-The first Dockerfile `Dockerfile` should:
-
-1. Inherit from the official images of [PyTorch](https://hub.docker.com/r/pytorch/pytorch) or [PyTorch Lightning](https://hub.docker.com/r/pytorchlightning/pytorch_lightning).
-2. Install all the required libraries from the requirements file.
-3. Install [libsdnfile](https://packages.debian.org/sid/libsndfile1).
-
-Once the Dockerfile is completed, build the image:
+First, check the adherence of your code to the Black style:
 
 ```bash
-docker build . --rm -t reprodl/env
+black --diff --check train.py test_audionet.py
 ```
 
-Run the environment in interactive mode:
+Then, try to apply the changes:
 
 ```bash
-docker run -d -it -p 9002:9000 reprodl/env
+black train.py test_audionet.py
 ```
-> :speech_balloon: Adding a volume is also a good idea at this point. You can avoid mapping the port if you do not plan to use MinIO.
 
-Find the container ID running `docker ps`, and try attaching to the container running `docker attach <id>`. Alternatively, you can [attach to a running container](https://code.visualstudio.com/docs/remote/attach-container) from Visual Studio Code.
+> :speech_balloon: Black is an **opinionated** formatting tool. If you do not like the resulting formatting, feel free to skip this step.
 
-From inside the container, try to replicate a training run.
+## Add a Git hook
 
-## Dockerfile \#2: an executable container
+Our challenge now is to ensure that testing and formatting are applied to every commit we make. A simple way to ensure this is to add a [pre-commit Git hook](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks).
 
-Read about [multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/). Add a second stage to the Dockerfile that automatically copies all the required data and launches a training run.
+> :speech_balloon: Because this is a didactic exercise, we implement the hook from scratch. For a realistic use case, consider [pre-commit](https://pre-commit.com/).
 
-1. You can use the [COPY command](https://docs.docker.com/engine/reference/builder/#copy) to copy .py and .yaml files.
-2. Pass the MinIO keys using the [ARG command](https://docs.docker.com/engine/reference/builder/#arg).
-3. Launch `dvc pull` during the build.
-4. Launch the final training command at the end of the Dockerfile with the [CMD command](https://docs.docker.com/engine/reference/builder/#cmd).
-
-Build the new Dockerfile:
+First, write a `pre-commit` script that launches our two testing routines. A small template is provided below:
 
 ```bash
-docker build . --rm --build-arg AWS_ACCESS_KEY_ID="minioadmin" --build-arg AWS_SECRET_ACCESS_KEY="minioadmin" -t reprodl/train
+#!/bin/sh
+
+# TODO: Launch the Black checker here
+...
+
+# If the command does not return 0 ('correct'), we exit the commit
+if [ $? -ne 0 ]; then
+	echo "Code is not formatted correctly!"
+	exit 1
+fi
+
+# TODO: Repeat a second time for the unit tests
 ```
 
-Launch another container:
+Move the file to `.git/hooks/`, and try launching a commit with poorly formatted code (it should fail). Then, repeat after executing the Black formatter.
 
-```bash
-docker run reprodl/train
+## Adding a GitHub Action
+
+The Git hook does its job, but it is limited, especially because it runs locally. **Continuous integration** platforms (like CircleCI, Travis CI, ...) provide a way of integrating these checks when a user pushes the code to the remote repository.
+
+For this exercise, we use GitHub Actions: read the [quickstart](https://docs.github.com/en/actions/quickstart) before proceeding.
+
+Create a `push-workflow.yml` file inside a `.github/workflows/` folder. The workflow shoud: (i) install all dependencies for our code; (ii) execute the unit tests; (iii) check adherence of the code to the Black style.
+
+An incomplete template is provided below:
+
+```yaml
+name: push-workflow
+on: [push]
+jobs:
+  build: # Build the environment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2 # Checkout the repository
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          sudo apt-get install -y libsndfile1-dev
+      - name: Run all unit tests 
+        run: ... # TODO: Add code here to run the unitests
+      # TODO: Add another step to run Black
 ```
 
-> :speech_balloon: Change the access keys according to your installation.
-
-## Optional: Push / pull from the Docker Hub
-
-You can also try [pushing and pulling](https://docs.docker.com/docker-hub/) your image using Docker Hub. First, tag your image accordingly:
-
-```bash
-docker tag reprodl/env <docker-username>/<project>
-```
-
-Then, push the image to the Docker Hub:
-
-```bash
-docker push <docker-username>/<project>
-```
+Push the new file to GitHub, then try committing additional code. You can visualize the running workflows from the Actions tab of the GitHub repository.
 
 Congratulations! You have concluded another move to a reproducible deep learning world. :nerd_face:
 
-Move to the next exercise:
-
-```bash
-git checkout exercise5_wandb
-```
-
-### Optional: Only for the DGX machine
-
-You might experience permission issues when building images and running containers on the DGX machine. You can solve most of them by adding these commands to your Dockerfile:
-
-```docker
-ARG USER_ID
-ARG GROUP_ID
-ENV USERNAME=<your-username>
-
-RUN addgroup --gid $GROUP_ID $USERNAME
-RUN adduser --home /home/$USERNAME --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID $USERNAME
-USER $USERNAME
-```
-
-When building the containers, add the flags `--build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g)`. When running an image, instead, add the flag `--user "$(id -u):$(id -g)"`.
+This exercise concludes the course. I hope you enjoyed it! Feel free to contact me or open an issue if you want to provide any feedback.

@@ -11,6 +11,7 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 logger = logging.getLogger(__name__)
 
+import wandb
 
 class ESC50Dataset(torch.utils.data.Dataset):
     # Simple class to load the desired folders inside ESC-50
@@ -118,14 +119,32 @@ class AudioNet(pl.LightningModule):
     
 @hydra.main(config_path='configs', config_name='default')
 def train(cfg: DictConfig):
+    
+    # Initialize the W&B agent using the default values from cfg
+    config = {
+        'sample_rate': cfg.data.sample_rate,
+        'lr': cfg.model.optimizer.lr,
+        'base_filters': cfg.model.base_filters
+    }
+    wandb.init(project="reprodl", config=config)
 
-    logger.info(OmegaConf.to_yaml(cfg))                                 # Log the config being used at runtime
-    path = f"{hydra.utils.get_original_cwd()}/{cfg.data.path}"          # Hydra moves the working directory, so we need to get the original path
+    # Get the (possibly updated) values from wandb
+    cfg.data.sample_rate = wandb.config.sample_rate
+    cfg.model.optimizer.lr = wandb.config.lr
+    cfg.model.base_filters = wandb.config.base_filters
+    
+    # Simple logging of the configuration
+    logger.info(OmegaConf.to_yaml(cfg))
+    
+    # We recover the original path of the dataset:
+    path = Path(hydra.utils.get_original_cwd()) / Path(cfg.data.path)
 
-    train_data = ESC50Dataset(path=path, folds=cfg.data.train_data_folds)
-    val_data = ESC50Dataset(path=path, folds=cfg.data.val_data_folds)
-    test_data = ESC50Dataset(path=path, folds=cfg.data.test_data_folds)
+    # Load data
+    train_data = ESC50Dataset(path=path, folds=cfg.data.train_folds)
+    val_data = ESC50Dataset(path=path, folds=cfg.data.val_folds)
+    test_data = ESC50Dataset(path=path, folds=cfg.data.test_folds)
 
+    # Wrap data with appropriate data loaders
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=cfg.data.batch_size, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=cfg.data.batch_size)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=cfg.data.batch_size)
@@ -133,7 +152,8 @@ def train(cfg: DictConfig):
     pl.seed_everything(cfg.seed)
 
     audionet = AudioNet(cfg.model)
-    trainer = pl.Trainer(**cfg.trainer)
+    wandb_logger = pl.loggers.WandbLogger()
+    trainer = pl.Trainer(**cfg.trainer, logger=wandb_logger)
     trainer.fit(audionet, train_loader, val_loader)
 
 
