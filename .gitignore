@@ -2,6 +2,6 @@ data/ESC-50/*
 .vscode/*
 lightning_logs/*
 ESC-50-master
-lightning_logs
 outputs
 wandb/*
+__pycache__
