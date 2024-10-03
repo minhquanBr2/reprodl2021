@@ -1,4 +1,6 @@
 data/ESC-50*
 .vscode/*
 lightning_logs/*
-outputs/*
+ESC-50-master
+lightning_logs
+outputs

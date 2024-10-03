@@ -1,12 +1,11 @@
 seed: 0
 
 data:
-  path: "data/ESC-50"
-  sample_rate: 8000
-  train_folds: [1,2,3]
-  val_folds: [4]
-  test_folds: [5]
-  batch_size: 8
+    train_data_folds: [1, 2, 3]
+    val_data_folds: [4]
+    test_data_folds: [5]
+    batch_size: 8
+    path: ESC-50-master
 
 model:
   base_filters: 32
@@ -15,9 +14,5 @@ model:
     lr: 3e-4
 
 trainer:
-  gpus: 1
-  max_epochs: 10
-
-defaults:
-- hydra/job_logging: colorlog
-- hydra/hydra_logging: colorlog
+    max_epochs: 25
+    
