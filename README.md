@@ -2,25 +2,15 @@
 ## Exercise 4: Dockerization
 [[Official website](https://www.sscardapane.it/teaching/reproducibledl/)] [[Slides](https://docs.google.com/presentation/d/1r7SbbajL-UnYHOeY9fQ9YtoJdu9Q70U5M_11E68K1Rg/edit?usp=sharing)] [[Docker Website](http://dvc.org/)]
 
-## Objectives for the exercise
+This is the completed version of **exercise 4** (adding a Docker setup). 
 
-- [ ] Pulling images and running containers.
-- [ ] Building custom images from Dockerfiles.
-- [ ] Pushing/pulling images from the Docker Hub.
-
-See the completed exercise:
+See the initial instructions:
 
 ```bash
-git checkout exercise4_docker_completed
+git checkout exercise4_docker
 ```
 
-## Prerequisites
-
-1. Complete [Exercise 3](https://github.com/sscardapane/reprodl2021/tree/exercise3_dvc). Leave the MinIO server in execution.
-2. Install [Docker Desktop](https://docs.docker.com/get-docker/). For using a CUDA-enabled GPU, install the [NVIDIA Container Toolkit](https://github.com/NVIDIA/nvidia-docker).
-3. If you are using Visual Studio Code, install the [Docker extension](https://code.visualstudio.com/docs/containers/overview).
-
-Before starting, check that Docker is installed correctly:
+You can inspect the commits to look at specific changes in the code:
 
 ```bash
 docker run hello-world
